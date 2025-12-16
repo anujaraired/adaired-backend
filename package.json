@@ -1,11 +1,8 @@
 {
   "name": "adaired-backend",
   "version": "1.0.0",
-  "main": "build/index.js",
+  "main": "dist/index.js",
   "scripts": {
-    "clean": "rimraf build",
-    "copy-files": "copyfiles -u 1 src/static/**/* build/",
-    "copy-views": "copyfiles -u 1 src/views/**/* build/",
     "dev": "nodemon src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js"
