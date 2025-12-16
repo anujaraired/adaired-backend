@@ -35,35 +35,41 @@ import scheduleBlogs from "./cron-jobs/post-scheduled-blog";
 dotenv.config();
 
 const app: Application = express();
+const PORT = process.env.PORT || 8080;
 const basePath = "/api/v2";
 
-/* ==============================
-   MongoDB Connection (cached)
-================================ */
-let isDBConnected = false;
+// CORS Middleware
+const allowedOrigins = [
+  "https://rwf4p3bf-3000.inc1.devtunnels.ms",
+  "https://dashboard-adaired.vercel.app",
+  "https://ad-admin-five.vercel.app",
+  "https://www.adaired.com",
+  "https://adaired.com",
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "http://localhost:3002",
+  "http://localhost:3003",
+  "http://localhost:3004",
+];
 
-const initDB = async () => {
-  if (!isDBConnected) {
-    await connectDB();
-    isDBConnected = true;
-  }
-};
-
-/* ==============================
-   Middleware
-================================ */
-app.use(helmet());
-
+// ========================
+// 🛡️ Security Middleware
+// ========================
+app.use(helmet()); // Security headers
 app.use(
   cors({
-    origin: process.env.ALLOWED_ORIGINS?.split(",") || "*",
+    origin: process.env.ALLOWED_ORIGINS?.split(",") || allowedOrigins,
     credentials: true,
+    maxAge: 86400, // 24h CORS preflight cache
   })
 );
 
-// Stripe webhook exception
+// ========================
+// ⚡ Performance Optimizations
+// ========================
 app.use((req: Request, res: Response, next: NextFunction) => {
   if (req.originalUrl === "/api/v2/orders/stripe-webhook") {
+    // Skip JSON parsing for Stripe webhook
     next();
   } else {
     express.json()(req, res, next);
@@ -72,9 +78,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 app.use(express.urlencoded({ extended: false }));
 
-/* ==============================
-   Routes
-================================ */
+// Ping Endpoint (minimal response)
 app.get(`${basePath}/ping`, (req: Request, res: Response) => {
   res.send("pong 🏓");
 });
@@ -100,24 +104,86 @@ app.use(`${basePath}/invoices`, invoiceRoutes);
 app.use(`${basePath}/page-seo`, pageSEORoute);
 app.use(`${basePath}/mail`, mailRoute);
 
-// Static & views (optional)
-app.use("/static", express.static(path.join(process.cwd(), "static")));
+// Static files and View Engine
+app.use("/static", express.static(path.join(__dirname + "static")));
 app.set("view engine", "ejs");
-app.set("views", path.join(process.cwd(), "views"));
+app.set("views", path.join(__dirname, "views"));
 
+// Root Route
 app.get(`${basePath}/`, (req: Request, res: Response) => {
   res.render("index");
 });
 
-/* ==============================
-   Error Handler
-================================ */
+// ========================
+// 🛑 Error Handling
+// ========================
 app.use(errorHandler);
 
-/* ==============================
-   Serverless Export (IMPORTANT)
-================================ */
-export default async function handler(req: any, res: any) {
-  await initDB();
-  return app(req, res);
-}
+// ========================
+// ⏱️ Startup & Shutdown
+// ========================
+// const startServer = async () => {
+//   try {
+//     console.log("🔧 Initializing MongoDB connection...");
+
+//     // Connect to DB first
+//     await connectDB();
+
+//     // Seed roles during startup if enabled
+//     if (process.env.SEED_ON_STARTUP === "true") {
+//       await seedRoles();
+//     }
+
+//     // Start server
+//     const server = app.listen(PORT, () => {
+//       console.log(`🚀 Server running on port ${PORT}`);
+//     });
+
+//     // Start background jobs
+//     emptyCartJob.start();
+//     scheduleBlogs();
+//     console.log("⏱️ Cron jobs initialized");
+
+//     return server;
+//   } catch (error) {
+//     console.error("🔥 Failed to start server:", error);
+//     process.exit(1);
+//   }
+// };
+
+app.listen(PORT, async () => {
+  try {
+    console.log("🔧 Initializing MongoDB connection...");
+    await connectDB();
+
+    // Seed roles during startup if enabled
+    if (process.env.SEED_ON_STARTUP === "true") {
+      await seedRoles();
+    }
+
+    console.log(`🚀 Server running on port ${PORT}`);
+  } catch (error) {
+    console.error("🔥 Failed to start server:", error);
+    process.exit(1);
+  }
+});
+
+// Graceful shutdown
+const shutdown = async () => {
+  console.log("\n🛑 Graceful shutdown initiated...");
+
+  try {
+    emptyCartJob.stop();
+    await closeDB();
+    console.log("✅ Server shutdown complete");
+    process.exit(0);
+  } catch (err) {
+    console.error("❌ Graceful shutdown failed:", err);
+    process.exit(1);
+  }
+};
+
+// process.on("SIGINT", shutdown); // Ctrl+C
+// process.on("SIGTERM", shutdown); // Kubernetes/Docker stop
+
+// Start the server
