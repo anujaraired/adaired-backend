@@ -1,4 +1,4 @@
-import nodemailer from "nodemailer";
+import * as nodemailer from "nodemailer";
 import Order from "../models/orderModel";
 import Invoice from "../models/invoice.model";
 
