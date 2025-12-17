@@ -15,7 +15,9 @@ export const sendMail = async (req: Request, res: Response) => {
 
     await transporter.sendMail({
       from: `"New Inquiry" <${process.env.EMAIL_USERNAME}>`,
-      to: ["dheeraj@adaired.com", "sahil@adaired.com", "anuj@adaired.org"],
+      // to: ["dheeraj@adaired.com", "sahil@adaired.com", "anuj@adaired.org"],
+      to: ["anuj@adaired.org"],
+
       subject: `New Inquiry - ${formId}`,
       html: `
         <h3>New Inquiry</h3>
