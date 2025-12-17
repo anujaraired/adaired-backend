@@ -6,16 +6,16 @@ export const sendMail = async (req: Request, res: Response) => {
     const { name, email, phone, message, formId } = req.body;
 
     const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
+      host: "smtp.gmail.com",
       port: 465,
       secure: true,
       auth: {
         user: process.env.EMAIL_USERNAME,
         pass: process.env.EMAIL_PASSWORD,
       },
-      tls: {
-        rejectUnauthorized: false,
-      },
+      // tls: {
+      //   rejectUnauthorized: false,
+      // },
     });
 
     await transporter.sendMail({
