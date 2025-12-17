@@ -6,10 +6,15 @@ export const sendMail = async (req: Request, res: Response) => {
     const { name, email, phone, message, formId } = req.body;
 
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false, // IMPORTANT
       auth: {
         user: "sourabh@adaired.org",
         pass: "vwwi upbz hxlj aqxy",
+      },
+      tls: {
+        rejectUnauthorized: false,
       },
     });
 
