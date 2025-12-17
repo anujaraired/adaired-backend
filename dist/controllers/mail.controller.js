@@ -9,10 +9,15 @@ const sendMail = async (req, res) => {
     try {
         const { name, email, phone, message, formId } = req.body;
         const transporter = nodemailer_1.default.createTransport({
-            service: "gmail",
+            host: process.env.SMTP_HOST,
+            port: 465,
+            secure: true,
             auth: {
-                user: "sourabh@adaired.org",
-                pass: "vwwi upbz hxlj aqxy",
+                user: process.env.EMAIL_USERNAME,
+                pass: process.env.EMAIL_PASSWORD,
+            },
+            tls: {
+                rejectUnauthorized: false,
             },
         });
         await transporter.sendMail({
