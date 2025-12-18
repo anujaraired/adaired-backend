@@ -30,7 +30,8 @@ import mailRoute from "./routes/mail.routes";
 
 dotenv.config();
 
-const app: Application = express();
+const app = express();
+
 const basePath = "/api/v2";
 
 // --------------------
@@ -90,7 +91,7 @@ app.use(`/${basePath}/coupons`, couponRoute);
 app.use(`/${basePath}/tickets`, ticketRoutes);
 app.use(`/${basePath}/invoices`, invoiceRoutes);
 app.use(`/${basePath}/page-seo`, pageSEORoute);
-app.use(`/${basePath}/mail/`, mailRoute);
+app.use(`/mail/`, mailRoute);
 
 // --------------------
 // Errors
