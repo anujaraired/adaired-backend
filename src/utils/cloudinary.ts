@@ -44,9 +44,7 @@ const TICKET_ATTACHMENTS_FOLDER = "ticket_attachments";
    Ticket Attachments Upload
 -------------------------------------------------- */
 
-export const uploadTicketAttachments = async (
-  files: Express.Multer.File[]
-) => {
+export const uploadTicketAttachments = async (files: Express.Multer.File[]) => {
   try {
     const uploadPromises = files.map(
       (file) =>
@@ -70,10 +68,7 @@ export const uploadTicketAttachments = async (
                 resolve(result);
               } else {
                 reject(
-                  new CustomError(
-                    500,
-                    `Upload failed for ${file.originalname}`
-                  )
+                  new CustomError(500, `Upload failed for ${file.originalname}`)
                 );
               }
             }
@@ -86,7 +81,10 @@ export const uploadTicketAttachments = async (
     const results = await Promise.allSettled(uploadPromises);
 
     const successfulUploads = results
-      .filter((r): r is PromiseFulfilledResult<UploadApiResponse> => r.status === "fulfilled")
+      .filter(
+        (r): r is PromiseFulfilledResult<UploadApiResponse> =>
+          r.status === "fulfilled"
+      )
       .map((r) => r.value);
 
     const failedUploads = results
@@ -94,7 +92,10 @@ export const uploadTicketAttachments = async (
       .map((r) => r.reason);
 
     if (failedUploads.length > 0) {
-      throw new CustomError(400, `Failed to upload ${failedUploads.length} files`);
+      throw new CustomError(
+        400,
+        `Failed to upload ${failedUploads.length} files`
+      );
     }
 
     return successfulUploads.map((upload) => ({
@@ -128,7 +129,10 @@ export const deleteTicketAttachments = async (publicIds: string[]) => {
       .map(([id]) => id);
 
     if (failed.length) {
-      throw new CustomError(500, `Failed to delete ${failed.length} attachments`);
+      throw new CustomError(
+        500,
+        `Failed to delete ${failed.length} attachments`
+      );
     }
 
     return result;
@@ -167,20 +171,22 @@ export const uploadImages = async (files: Express.Multer.File[]) => {
     const results = await Promise.allSettled(uploadPromises);
 
     const successfulUploads = results
-      .filter((r): r is PromiseFulfilledResult<UploadApiResponse> => r.status === "fulfilled")
+      .filter(
+        (r): r is PromiseFulfilledResult<UploadApiResponse> =>
+          r.status === "fulfilled"
+      )
       .map((r) => r.value);
 
     let allImages: CloudinaryResource[] = [];
     let nextCursor: string | undefined;
 
     do {
-      const response =
-        (await cloudinary.search
-          .expression("resource_type:image")
-          .sort_by("created_at", "desc")
-          .max_results(500)
-          .next_cursor(nextCursor)
-          .execute()) as CloudinarySearchResponse<CloudinaryResource>;
+      const response = (await cloudinary.search
+        .expression("resource_type:image")
+        .sort_by("created_at", "desc")
+        .max_results(500)
+        .next_cursor(nextCursor)
+        .execute()) as CloudinarySearchResponse<CloudinaryResource>;
 
       allImages = allImages.concat(response.resources);
       nextCursor = response.next_cursor;
@@ -221,13 +227,12 @@ export const fetchImagesInFolder = async (
   if (fileType === "non-svg") expression += " AND NOT format:svg";
 
   do {
-    const response =
-      (await cloudinary.search
-        .expression(expression)
-        .sort_by("created_at", "desc")
-        .max_results(50)
-        .next_cursor(nextCursor)
-        .execute()) as CloudinarySearchResponse<CloudinaryResource>;
+    const response = (await cloudinary.search
+      .expression(expression)
+      .sort_by("created_at", "desc")
+      .max_results(50)
+      .next_cursor(nextCursor)
+      .execute()) as CloudinarySearchResponse<CloudinaryResource>;
 
     resources = resources.concat(response.resources);
     nextCursor = response.next_cursor;

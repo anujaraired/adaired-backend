@@ -64,6 +64,10 @@ app.get(`${basePath}/ping`, (_req, res) => {
   res.send("pong 🏓");
 });
 
+app.get("/", (_req, res) => {
+  res.send("adaired server is running");
+});
+
 // --------------------
 // Routes
 // --------------------
