@@ -77,7 +77,7 @@ app.use(`/${basePath}/auth`, auth_routes);
 app.use(`/${basePath}/user`, user_routes);
 app.use(`/${basePath}/role`, role_routes);
 app.use(`/${basePath}/permission-module`, permission_module_routes);
-app.use(`/${basePath}/blog`, blog_routes);
+app.use(`/blog/`, blog_routes);
 app.use(`/${basePath}/blog-category`, blog_category_routes);
 app.use(`/${basePath}/case-study`, case_study_routes);
 app.use(`/${basePath}/case-study/category`, case_study_category_routes);
