@@ -32,7 +32,7 @@ dotenv.config();
 
 const app = express();
 
-const basePath = "/api/v2";
+const basePath = "/v2";
 
 // --------------------
 // Security
