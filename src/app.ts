@@ -91,7 +91,7 @@ app.use(`${basePath}/coupons`, couponRoute);
 app.use(`${basePath}/tickets`, ticketRoutes);
 app.use(`${basePath}/invoices`, invoiceRoutes);
 app.use(`${basePath}/page-seo`, pageSEORoute);
-app.use(`/mail/`, mailRoute);
+app.use(`${basePath}/mail`, mailRoute);
 
 // --------------------
 // Errors
