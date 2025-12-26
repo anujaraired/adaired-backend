@@ -10,8 +10,8 @@ export const sendMail = async (req: Request, res: Response) => {
       port: 465,
       secure: true,
       auth: {
-        user: process.env.MAIL_USER,
-        pass: process.env.MAIL_PASS,
+        user: process.env.EMAIL_USERNAME,
+        pass: process.env.EMAIL_PASSWORD,
       },
       // tls: {
       //   rejectUnauthorized: false,
@@ -19,8 +19,9 @@ export const sendMail = async (req: Request, res: Response) => {
     });
 
     await transporter.sendMail({
-      from: `"New Inquiry" <${process.env.MAIL_USER}>`,
-      to: ["dheeraj@adaired.com", "sahil@adaired.com", "ratanjyot@adaired.org"],
+      from: `"New Inquiry" <${process.env.EMAIL_USERNAME}>`,
+      // to: ["dheeraj@adaired.com", "sahil@adaired.com", "anuj@adaired.org"],
+      to: ["anuj@adaired.org"],
 
       subject: `New Inquiry - ${formId}`,
       html: `
