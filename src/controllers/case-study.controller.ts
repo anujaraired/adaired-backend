@@ -159,6 +159,40 @@ export const getCaseStudy = async (
   }
 };
 
+export const getSingleCaseStudy = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    // Validate MongoDB ObjectId (recommended)
+    if (!id || !id.match(/^[0-9a-fA-F]{24}$/)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid case study ID",
+      });
+    }
+
+    const caseStudy = await Case_Study.findById(id);
+
+    if (!caseStudy) {
+      return res.status(404).json({
+        success: false,
+        message: "Case study not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: caseStudy,
+    });
+  } catch (error) {
+    console.error("Error fetching case study:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
 interface CaseStudyQuery {
   _id?: string;
   slug?: string;

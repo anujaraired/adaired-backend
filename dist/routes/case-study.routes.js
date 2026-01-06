@@ -10,6 +10,7 @@ const validator_1 = require("../helpers/validator");
 const router = express_1.default.Router();
 router.post("/create", authMiddleware_1.default, validator_1.validateCaseStudy, case_study_controller_1.createCaseStudy);
 router.get("/read", case_study_controller_1.getCaseStudy);
+router.get("/read/:id", case_study_controller_1.getSingleCaseStudy);
 router.put("/update", authMiddleware_1.default, validator_1.validateUpdateCaseStudy, case_study_controller_1.updateCaseStudy);
 router.delete("/delete", authMiddleware_1.default, validator_1.validateDeleteCaseStudy, case_study_controller_1.deleteCaseStudy);
 exports.default = router;

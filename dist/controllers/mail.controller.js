@@ -9,16 +9,16 @@ const sendMail = async (req, res) => {
     try {
         const { name, email, phone, message, formId } = req.body;
         const transporter = nodemailer_1.default.createTransport({
-            host: process.env.SMTP_HOST,
+            host: "smtp.gmail.com",
             port: 465,
             secure: true,
             auth: {
                 user: process.env.EMAIL_USERNAME,
                 pass: process.env.EMAIL_PASSWORD,
             },
-            tls: {
-                rejectUnauthorized: false,
-            },
+            // tls: {
+            //   rejectUnauthorized: false,
+            // },
         });
         await transporter.sendMail({
             from: `"New Inquiry" <${process.env.EMAIL_USERNAME}>`,

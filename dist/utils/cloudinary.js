@@ -8,7 +8,9 @@ const dotenv_1 = __importDefault(require("dotenv"));
 const cloudinary_1 = require("cloudinary");
 const error_1 = require("../middlewares/error");
 dotenv_1.default.config();
-// Cloudinary Configuration
+/* --------------------------------------------------
+   Cloudinary Config
+-------------------------------------------------- */
 try {
     cloudinary_1.v2.config({
         cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -16,53 +18,45 @@ try {
         api_secret: process.env.CLOUDINARY_API_SECRET,
     });
 }
-catch (configError) {
-    console.error("Cloudinary configuration error:", configError);
+catch (error) {
+    console.error("Cloudinary configuration error:", error);
     throw new error_1.CustomError(500, "Cloudinary configuration failed");
 }
-// Create a dedicated folder in Cloudinary for ticket attachments
 const TICKET_ATTACHMENTS_FOLDER = "ticket_attachments";
-// ********** Ticket Attachments Functions **********
-/**
- * Uploads multiple files to Cloudinary in the ticket attachments folder
- * @param files Array of files to upload
- * @returns Array of uploaded attachments
- */
+/* --------------------------------------------------
+   Ticket Attachments Upload
+-------------------------------------------------- */
 const uploadTicketAttachments = async (files) => {
     try {
-        const uploadPromises = files.map((file) => {
-            return new Promise((resolve, reject) => {
-                const isSvg = file.mimetype === "image/svg+xml";
-                const uploadStream = cloudinary_1.v2.uploader.upload_stream({
-                    folder: TICKET_ATTACHMENTS_FOLDER,
-                    resource_type: isSvg ? "image" : "auto",
-                }, (error, result) => {
-                    if (error) {
-                        reject(new error_1.CustomError(500, `Failed to upload ${file.originalname}: ${error.message}`));
-                    }
-                    else if (result) {
-                        resolve({ ...result });
-                    }
-                    else {
-                        reject(new error_1.CustomError(500, `Upload failed for ${file.originalname}`));
-                    }
-                });
-                uploadStream.end(file.buffer);
+        const uploadPromises = files.map((file) => new Promise((resolve, reject) => {
+            const isSvg = file.mimetype === "image/svg+xml";
+            const uploadStream = cloudinary_1.v2.uploader.upload_stream({
+                folder: TICKET_ATTACHMENTS_FOLDER,
+                resource_type: isSvg ? "image" : "auto",
+            }, (error, result) => {
+                if (error) {
+                    reject(new error_1.CustomError(500, `Failed to upload ${file.originalname}: ${error.message}`));
+                }
+                else if (result) {
+                    resolve(result);
+                }
+                else {
+                    reject(new error_1.CustomError(500, `Upload failed for ${file.originalname}`));
+                }
             });
-        });
+            uploadStream.end(file.buffer);
+        }));
         const results = await Promise.allSettled(uploadPromises);
         const successfulUploads = results
-            .filter((result) => result.status === "fulfilled")
-            .map((result) => result.value);
+            .filter((r) => r.status === "fulfilled")
+            .map((r) => r.value);
         const failedUploads = results
-            .filter((result) => result.status === "rejected")
-            .map((result) => result.reason);
+            .filter((r) => r.status === "rejected")
+            .map((r) => r.reason);
         if (failedUploads.length > 0) {
-            console.error("Failed uploads:", failedUploads);
             throw new error_1.CustomError(400, `Failed to upload ${failedUploads.length} files`);
         }
-        // Format the successful uploads into ticket attachments
-        const attachments = successfulUploads.map((upload) => ({
+        return successfulUploads.map((upload) => ({
             url: upload.secure_url,
             publicId: upload.public_id,
             fileName: upload.original_filename || "file",
@@ -70,241 +64,156 @@ const uploadTicketAttachments = async (files) => {
             fileSize: upload.bytes,
             uploadedAt: new Date(upload.created_at),
         }));
-        return attachments;
     }
     catch (error) {
-        console.error("Error uploading ticket attachments:", error);
         throw new error_1.CustomError(error.statusCode || 500, error.message || "Failed to upload ticket attachments");
     }
 };
 exports.uploadTicketAttachments = uploadTicketAttachments;
-/**
- * Deletes ticket attachments from Cloudinary
- * @param publicIds Array of public IDs to delete
- */
+/* --------------------------------------------------
+   Delete Ticket Attachments
+-------------------------------------------------- */
 const deleteTicketAttachments = async (publicIds) => {
+    if (!publicIds.length)
+        return;
     try {
-        if (!publicIds || publicIds.length === 0)
-            return;
-        // Cloudinary allows deleting multiple files at once
         const result = await cloudinary_1.v2.api.delete_resources(publicIds);
-        // Check for errors in deletion
-        const failedDeletions = Object.entries(result.deleted)
-            .filter(([_, value]) => value !== "deleted")
-            .map(([publicId]) => publicId);
-        if (failedDeletions.length > 0) {
-            console.error("Failed to delete attachments:", failedDeletions);
-            throw new error_1.CustomError(500, `Failed to delete ${failedDeletions.length} attachments`);
+        const failed = Object.entries(result.deleted)
+            .filter(([_, status]) => status !== "deleted")
+            .map(([id]) => id);
+        if (failed.length) {
+            throw new error_1.CustomError(500, `Failed to delete ${failed.length} attachments`);
         }
         return result;
     }
     catch (error) {
-        console.error("Error deleting ticket attachments:", error);
         throw new error_1.CustomError(error.statusCode || 500, error.message || "Failed to delete ticket attachments");
     }
 };
 exports.deleteTicketAttachments = deleteTicketAttachments;
-// ********** Existing Cloudinary Functions **********
-// ********** Upload images to Cloudinary **********
+/* --------------------------------------------------
+   Upload Images
+-------------------------------------------------- */
 const uploadImages = async (files) => {
     try {
-        const uploadPromises = files.map((file) => {
-            return new Promise((resolve, reject) => {
-                const isSvg = file.mimetype === "image/svg+xml";
-                const uploadStream = cloudinary_1.v2.uploader.upload_stream({
-                    resource_type: isSvg ? "image" : "auto",
-                }, (error, result) => {
-                    if (error) {
-                        reject({ error, file: file.originalname });
-                    }
-                    else if (result) {
-                        resolve({ ...result });
-                    }
-                    else {
-                        reject({
-                            error: new Error("Upload failed"),
-                            file: file.originalname,
-                        });
-                    }
-                });
-                uploadStream.end(file.buffer);
+        const uploadPromises = files.map((file) => new Promise((resolve, reject) => {
+            const isSvg = file.mimetype === "image/svg+xml";
+            const uploadStream = cloudinary_1.v2.uploader.upload_stream({ resource_type: isSvg ? "image" : "auto" }, (error, result) => {
+                if (error)
+                    reject(error);
+                else if (result)
+                    resolve(result);
+                else
+                    reject(new Error("Upload failed"));
             });
-        });
+            uploadStream.end(file.buffer);
+        }));
         const results = await Promise.allSettled(uploadPromises);
         const successfulUploads = results
-            .filter((result) => result.status === "fulfilled")
-            .map((result) => result.value);
-        const failedUploads = results
-            .filter((result) => result.status === "rejected")
-            .map((result) => result.reason);
-        if (failedUploads.length > 0) {
-            console.error("Failed uploads:", failedUploads);
-        }
-        // Function to fetch all images with retry logic
-        async function fetchAllImagesWithRetry(maxRetries = 5, delayMs = 1000) {
-            // If no successful uploads, just fetch once
-            if (successfulUploads.length === 0) {
-                let allImages = [];
-                let nextCursor = undefined;
-                do {
-                    const response = await cloudinary_1.v2.search
-                        .expression("resource_type:image")
-                        .max_results(500)
-                        .next_cursor(nextCursor)
-                        .sort_by("created_at", "desc")
-                        .execute()
-                        .catch((error) => {
-                        console.error("Error fetching images:", error);
-                        return { resources: [], next_cursor: undefined };
-                    });
-                    allImages = allImages.concat(response.resources);
-                    nextCursor = response.next_cursor;
-                } while (nextCursor);
-                return allImages;
-            }
-            // Retry logic for when there are new uploads
-            for (let attempt = 1; attempt <= maxRetries; attempt++) {
-                let allImages = [];
-                let nextCursor = undefined;
-                do {
-                    const response = await cloudinary_1.v2.search
-                        .expression("resource_type:image")
-                        .max_results(500)
-                        .next_cursor(nextCursor)
-                        .sort_by("created_at", "desc")
-                        .execute()
-                        .catch((error) => {
-                        console.error(`Fetch attempt ${attempt} failed:`, error);
-                        return { resources: [], next_cursor: undefined };
-                    });
-                    allImages = allImages.concat(response.resources);
-                    nextCursor = response.next_cursor;
-                } while (nextCursor);
-                // Verify all successful uploads are present
-                const allUploadsPresent = successfulUploads.every((upload) => allImages.some((img) => img.public_id === upload.public_id));
-                if (allUploadsPresent) {
-                    return allImages;
-                }
-                console.log(`Attempt ${attempt}/${maxRetries}: Waiting for new uploads to index...`);
-                await new Promise((resolve) => setTimeout(resolve, delayMs));
-            }
-            // If we reach here, retries failed - fetch one last time and return what we have
-            console.warn("Max retries reached - returning available images");
-            let allImages = [];
-            let nextCursor = undefined;
-            do {
-                const response = await cloudinary_1.v2.search
-                    .expression("resource_type:image")
-                    .max_results(500)
-                    .next_cursor(nextCursor)
-                    .sort_by("created_at", "desc")
-                    .execute();
-                allImages = allImages.concat(response.resources);
-                nextCursor = response.next_cursor;
-            } while (nextCursor);
-            return allImages;
-        }
-        const allImages = await fetchAllImagesWithRetry();
-        return {
-            successfulUploads,
-            failedUploads,
-            allImages,
-        };
+            .filter((r) => r.status === "fulfilled")
+            .map((r) => r.value);
+        let allImages = [];
+        let nextCursor;
+        do {
+            const response = (await cloudinary_1.v2.search
+                .expression("resource_type:image")
+                .sort_by("created_at", "desc")
+                .max_results(500)
+                .next_cursor(nextCursor)
+                .execute());
+            allImages = allImages.concat(response.resources);
+            nextCursor = response.next_cursor;
+        } while (nextCursor);
+        return { successfulUploads, allImages };
     }
     catch (error) {
-        throw new error_1.CustomError(500, "Image upload failed: " + error);
+        throw new error_1.CustomError(500, "Image upload failed");
     }
 };
 exports.uploadImages = uploadImages;
-// *********** Fetch Image By Public ID **********
-const fetchImageByPublicId = async (public_id) => {
+/* --------------------------------------------------
+   Fetch Image By Public ID
+-------------------------------------------------- */
+const fetchImageByPublicId = async (publicId) => {
     try {
-        const result = await cloudinary_1.v2.search
-            .expression(`public_id:${public_id}`)
+        return await cloudinary_1.v2.search
+            .expression(`public_id:${publicId}`)
             .execute();
-        return result;
     }
-    catch (error) {
-        console.error("Error fetching image by public ID:", error);
+    catch {
         throw new error_1.CustomError(500, "Failed to fetch image by public ID");
     }
 };
 exports.fetchImageByPublicId = fetchImageByPublicId;
-// ********** Fetch All images from Cloudinary with Pagination **********
+/* --------------------------------------------------
+   Fetch Images in Folder
+-------------------------------------------------- */
 const fetchImagesInFolder = async (fileType = "all") => {
-    try {
-        let resources = [];
-        let nextCursor = undefined;
-        // Constructing the search expression based on the fileType parameter
-        let expression = `folder:""`;
-        if (fileType === "svg") {
-            expression += ` AND resource_type:image AND format:svg`;
-        }
-        else if (fileType === "non-svg") {
-            expression += ` AND resource_type:image AND NOT format:svg`;
-        }
-        do {
-            const { resources: batch, next_cursor } = await cloudinary_1.v2.search
-                .expression(expression)
-                .sort_by("created_at", "desc")
-                .max_results(50)
-                .with_field("context")
-                .next_cursor(nextCursor)
-                .execute();
-            resources = resources.concat(batch);
-            nextCursor = next_cursor;
-        } while (nextCursor);
-        return resources;
-    }
-    catch (error) {
-        throw new error_1.CustomError(error?.error?.http_code, error.error.message || "Failed to fetch images from Cloudinary");
-    }
+    let resources = [];
+    let nextCursor;
+    let expression = "resource_type:image";
+    if (fileType === "svg")
+        expression += " AND format:svg";
+    if (fileType === "non-svg")
+        expression += " AND NOT format:svg";
+    do {
+        const response = (await cloudinary_1.v2.search
+            .expression(expression)
+            .sort_by("created_at", "desc")
+            .max_results(50)
+            .next_cursor(nextCursor)
+            .execute());
+        resources = resources.concat(response.resources);
+        nextCursor = response.next_cursor;
+    } while (nextCursor);
+    return resources;
 };
 exports.fetchImagesInFolder = fetchImagesInFolder;
-// ********** Delete image from Cloudinary **********
-const deleteImage = async (public_id) => {
+/* --------------------------------------------------
+   Delete Image
+-------------------------------------------------- */
+const deleteImage = async (publicId) => {
     try {
-        const result = await cloudinary_1.v2.uploader.destroy(public_id);
+        const result = await cloudinary_1.v2.uploader.destroy(publicId);
         if (result.result !== "ok") {
-            throw new Error(`Failed to delete image with public ID: ${public_id}`);
+            throw new Error("Delete failed");
         }
         return result;
     }
-    catch (error) {
-        throw new error_1.CustomError(500, `Failed to delete image: ${error}`);
+    catch {
+        throw new error_1.CustomError(500, "Failed to delete image");
     }
 };
 exports.deleteImage = deleteImage;
-// ********** Edit image info from Cloudinary **********
-const editImageInfo = async (public_id, caption, alt) => {
+/* --------------------------------------------------
+   Edit Image Info
+-------------------------------------------------- */
+const editImageInfo = async (publicId, caption, alt) => {
+    const context = {};
+    if (caption)
+        context.caption = caption;
+    if (alt)
+        context.alt = alt;
     try {
-        const updateOptions = {};
-        if (caption) {
-            updateOptions.context = { caption: caption };
-        }
-        if (alt) {
-            updateOptions.context = { ...updateOptions.context, alt: alt };
-        }
-        const result = await cloudinary_1.v2.uploader.explicit(public_id, {
+        return await cloudinary_1.v2.uploader.explicit(publicId, {
             type: "upload",
-            ...updateOptions,
+            context,
         });
-        return result;
     }
-    catch (error) {
-        console.error("Error editing image info:", error);
-        throw new error_1.CustomError(500, `Failed to edit image info: ${error}`);
+    catch {
+        throw new error_1.CustomError(500, "Failed to edit image info");
     }
 };
 exports.editImageInfo = editImageInfo;
-// ********** Get Cloudinary Storage Usage ***********
+/* --------------------------------------------------
+   Cloudinary Usage
+-------------------------------------------------- */
 const getCloudinaryStorageUsage = async () => {
     try {
-        const response = await cloudinary_1.v2.api.usage();
-        return response;
+        return await cloudinary_1.v2.api.usage();
     }
-    catch (error) {
-        throw new error_1.CustomError(500, `Failed to fetch Cloudinary storage usage info: ${error}`);
+    catch {
+        throw new error_1.CustomError(500, "Failed to fetch storage usage");
     }
 };
 exports.getCloudinaryStorageUsage = getCloudinaryStorageUsage;
