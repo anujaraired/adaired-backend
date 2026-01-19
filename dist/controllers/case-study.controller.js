@@ -47,44 +47,120 @@ const case_study_category_model_1 = __importDefault(require("../models/case-stud
 // **************************************************************************
 // ********** Create New Case Study  ****************************************
 // **************************************************************************
+// export const createCaseStudy = async (
+//   req: Request,
+//   res: Response,
+//   next: NextFunction
+// ) => {
+//   try {
+//     const { userId, body } = req;
+//     const { name, slug, category } = body;
+//     // Create new case study
+//     const newCaseStudy = {
+//       ...body,
+//       // slug: slugify(slug || name, { lower: true }),
+//       category: category,
+//       createdBy: userId,
+//       updatedBy: userId,
+//     };
+//     const caseStudy = await Case_Study.create(newCaseStudy);
+//     // Update category if provided
+//     if (category) {
+//       await CaseStudy_Category.findByIdAndUpdate(
+//         category,
+//         { $addToSet: { caseStudies: caseStudy._id } },
+//         { new: true }
+//       );
+//     }
+//     // Populate references
+//     const populatedCaseStudy = await Case_Study.findById(caseStudy._id)
+//       .populate("category", "name slug")
+//       .populate("createdBy", "image name email")
+//       .populate("updatedBy", "image name email")
+//       .lean();
+//     res.status(201).json({
+//       success: true,
+//       message: "Case study created successfully",
+//       data: populatedCaseStudy,
+//     });
+//   } catch (error: any) {
+//     // Handle validation errors
+//     if (error.message.includes("required") || error.message.includes("empty")) {
+//       next(new CustomError(400, error.message));
+//     } else {
+//       next(new CustomError(500, error.message));
+//     }
+//   }
+// };
 const createCaseStudy = async (req, res, next) => {
     try {
         const { userId, body } = req;
-        const { name, slug, category } = body;
-        // Check permissions
-        const permissionCheck = await (0, authHelper_1.checkPermission)(userId, "case-studies", 0);
-        if (!permissionCheck)
-            return;
-        // Validate user input
-        if (!(0, validateInput_1.validateInput)(req, res))
-            return;
-        // Check if category exists
-        const newSlug = (0, slugify_1.default)(slug || name, { lower: true });
-        const existingCaseStudy = await case_study_model_1.default.findOne({
-            $or: [
-                { name: { $regex: new RegExp("^" + name + "$", "i") } },
-                { slug: newSlug },
-            ],
-        });
-        if (existingCaseStudy) {
-            return next(new error_1.CustomError(400, existingCaseStudy.name.toLowerCase() === name.toLowerCase()
-                ? "Case study with this name already exists"
-                : "Case study with this slug already exists"));
+        console.log(body, "bodyifdkldd");
+        // 🔥 FORCE normalize SEO (override anything incoming)
+        const normalizedSeo = {
+            metaTitle: body.seo?.metaTitle,
+            metaDescription: body.seo?.metaDescription,
+            focusKeyword: body.seo?.focusKeyword ||
+                (Array.isArray(body.seo?.keywords) ? body.seo.keywords[0] : undefined),
+            canonicalLink: body.seo?.canonicalLink || body.seo?.canonical,
+        };
+        if (!normalizedSeo.focusKeyword) {
+            return next(new error_1.CustomError(400, "SEO focus keyword is required"));
         }
-        // Create new case study
+        if (!normalizedSeo.canonicalLink) {
+            return next(new error_1.CustomError(400, "SEO canonical link is required"));
+        }
+        /* -------------------------------
+           1. Normalize name
+        --------------------------------*/
+        const name = body.name || body.caseStudyName || body.title;
+        if (!name || typeof name !== "string" || !name.trim()) {
+            return next(new error_1.CustomError(400, "Case study name is required"));
+        }
+        /* -------------------------------
+           2. Validate required fields
+        --------------------------------*/
+        if (!body.colorScheme) {
+            return next(new error_1.CustomError(400, "Color scheme is required"));
+        }
+        // if (!body.seo) {
+        //   return next(new CustomError(400, "SEO data is required"));
+        // }
+        /* -------------------------------
+           3. Generate slug safely
+        --------------------------------*/
+        const slug = typeof body.slug === "string" && body.slug.trim()
+            ? body.slug
+            : (0, slugify_1.default)(name, { lower: true, strict: true });
+        /* -------------------------------
+           4. Build payload explicitly
+        --------------------------------*/
         const newCaseStudy = {
-            ...body,
-            slug: (0, slugify_1.default)(slug || name, { lower: true }),
-            category: category,
+            name,
+            slug,
+            colorScheme: body.colorScheme,
+            status: body.status || "inactive",
+            category: body.category || null,
+            bodyData: body.bodyData || [],
+            seo: normalizedSeo,
             createdBy: userId,
             updatedBy: userId,
         };
+        /* -------------------------------
+           5. Create Case Study
+        --------------------------------*/
         const caseStudy = await case_study_model_1.default.create(newCaseStudy);
-        // Update category if provided
-        if (category) {
-            await case_study_category_model_1.default.findByIdAndUpdate(category, { $addToSet: { caseStudies: caseStudy._id } }, { new: true });
+        /* -------------------------------
+           6. Update category reference
+        --------------------------------*/
+        if (body.category) {
+            await case_study_category_model_1.default.findByIdAndUpdate(body.category, {
+                $addToSet: { caseStudies: caseStudy._id },
+            });
         }
-        // Populate references
+        /* -------------------------------
+           7. Populate & respond
+        --------------------------------*/
         const populatedCaseStudy = await case_study_model_1.default.findById(caseStudy._id)
             .populate("category", "name slug")
             .populate("createdBy", "image name email")
@@ -97,13 +173,7 @@ const createCaseStudy = async (req, res, next) => {
         });
     }
     catch (error) {
-        // Handle validation errors
-        if (error.message.includes("required") || error.message.includes("empty")) {
-            next(new error_1.CustomError(400, error.message));
-        }
-        else {
-            next(new error_1.CustomError(500, error.message));
-        }
+        next(new error_1.CustomError(500, error.message));
     }
 };
 exports.createCaseStudy = createCaseStudy;

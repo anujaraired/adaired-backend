@@ -15,7 +15,9 @@ import {
 
 const router: Router = express.Router();
 
-router.post("/create", verifyToken, validateCaseStudy, createCaseStudy);
+// router.post("/create", verifyToken, validateCaseStudy, createCaseStudy);
+router.post("/create", createCaseStudy);
+
 router.get("/read", getCaseStudy);
 router.get("/read/:id", getSingleCaseStudy);
 router.put("/update", verifyToken, validateUpdateCaseStudy, updateCaseStudy);
